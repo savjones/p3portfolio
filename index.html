@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo Arm Forward Kinematics</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column, video first, then short sections; tables scroll inside their own box. */
+:root{
+  --bg:#f4f6f8; --surface:#ffffff; --fg:#14202b; --muted:#566574; --line:#d6dde4;
+  --accent:#b86f00; --accent-soft:#f6e6c8; --link:#1d62a8; --code-bg:#eaeef2;
+  --display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+  --body:"Instrument Sans","Helvetica Neue",Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e151c; --surface:#151f29; --fg:#e4ebf1; --muted:#93a3b2; --line:#26343f;
+  --accent:#f0b24a; --accent-soft:#2f2614; --link:#7fb8ee; --code-bg:#1b2833; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e151c; --surface:#151f29; --fg:#e4ebf1; --muted:#93a3b2; --line:#26343f;
+  --accent:#f0b24a; --accent-soft:#2f2614; --link:#7fb8ee; --code-bg:#1b2833; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.6;
+  padding-block:32px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:40px}
+header{display:flex;flex-direction:column;gap:10px}
+.eyebrow{font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(30px,6vw,46px);line-height:1.08;margin:0;text-wrap:balance}
+h2{font-family:var(--display);font-weight:600;font-size:24px;line-height:1.2;margin:0 0 10px;text-wrap:balance}
+p{margin:0 0 12px;max-width:68ch}
+.lede{font-size:18px;color:var(--fg);max-width:62ch}
+a{color:var(--link)}
+.video{background:#000;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.video video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#000}
+.cap{font-size:13.5px;color:var(--muted);margin:8px 0 0;max-width:none}
+section{display:flex;flex-direction:column}
+.box{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:14.5px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:var(--code-bg)}
+tr:last-child td{border-bottom:0}
+td.n,th.n{font-variant-numeric:tabular-nums}
+code,.mono{font-family:var(--mono);font-size:.88em}
+code{background:var(--code-bg);padding:1px 5px;border-radius:4px}
+.states{display:flex;flex-wrap:wrap;gap:8px 6px;align-items:center;margin:4px 0 14px;padding:0;list-style:none}
+.states li{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 9px}
+.states li.sep{border:0;background:none;padding:0;color:var(--muted)}
+.states li.hot{border-color:var(--accent);background:var(--accent-soft)}
+.eq{font-family:var(--mono);font-size:14px;background:var(--code-bg);border-radius:8px;padding:12px 14px;overflow-x:auto;white-space:pre;line-height:1.7;margin:0 0 12px}
+.flow{display:grid;gap:0;border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:hidden}
+.flow div{display:grid;grid-template-columns:minmax(0,15rem) minmax(0,1fr);gap:14px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.flow div:last-child{border-bottom:0}
+.flow b{font-family:var(--mono);font-weight:500;font-size:13.5px;color:var(--accent);overflow-wrap:anywhere}
+.flow span{font-size:14.5px}
+@media (max-width:560px){.flow div{grid-template-columns:1fr;gap:2px}}
+footer{border-top:1px solid var(--line);padding-top:18px;color:var(--muted);font-size:14px}
+footer p{max-width:none}
+body{margin:0}
+video,img{max-width:100%}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">EECS 367 / ROB 380 / ROB 511 &middot; Fall 2026 &middot; Project 3</div>
+  <h1>Demo Arm Forward Kinematics</h1>
+  <p class="lede">A seven-joint robot arm that picks something up, carries it across the table, sets it down and waves. Every link is placed by forward kinematics code I wrote in Rust, and a viewer I built draws it live from the <code>/xform_world</code> topic.</p>
+  <div class="eyebrow">Savaun Jones</div>
+</header>
+
+<section>
+  <div class="video">
+    <video controls muted loop playsinline preload="metadata" poster="poster.jpg">
+      <source type="video/mp4" src="demo.mp4">
+      Your browser cannot play this video.
+    </video>
+  </div>
+  <p class="cap">One full run of the choreography, recorded from the viewer while <code>make demo</code> was running. The camera drifts around the arm on its own. The readout in the corner shows the state machine's current state.</p>
+</section>
+
+<section>
+  <h2>The robot</h2>
+  <p>The arm is an original design for this project, written as a flat URDF with nine links and eight joints. It stands on a square base, turns on a turret, has a shoulder, an elbow and a flexing wrist, and ends in a rolling hand with two sliding fingers. A fixed joint places a tool tip in front of the hand.</p>
+  <div class="box"><table>
+    <tr><th>Joint</th><th>Type</th><th>Axis</th><th class="n">Limits</th><th>Role</th></tr>
+    <tr><td><code>shoulder_pan_joint</code></td><td>revolute</td><td>z</td><td class="n">&plusmn;2.8 rad</td><td>turns the whole arm</td></tr>
+    <tr><td><code>shoulder_lift_joint</code></td><td>revolute</td><td>y</td><td class="n">&plusmn;1.6 rad</td><td>raises and lowers the upper arm</td></tr>
+    <tr><td><code>elbow_joint</code></td><td>revolute</td><td>y</td><td class="n">&plusmn;2.2 rad</td><td>folds the forearm</td></tr>
+    <tr><td><code>wrist_flex_joint</code></td><td>revolute</td><td>y</td><td class="n">&plusmn;1.8 rad</td><td>tilts the hand</td></tr>
+    <tr><td><code>wrist_roll_joint</code></td><td>continuous</td><td>z</td><td class="n">none</td><td>spins the hand without a stop</td></tr>
+    <tr><td><code>left_finger_joint</code></td><td>prismatic</td><td>+y</td><td class="n">0 to 0.04 m</td><td>slides one finger out</td></tr>
+    <tr><td><code>right_finger_joint</code></td><td>prismatic</td><td>&minus;y</td><td class="n">0 to 0.04 m</td><td>slides the other finger out</td></tr>
+    <tr><td><code>tool_tip_joint</code></td><td>fixed</td><td>none</td><td class="n">none</td><td>marks the point between the fingers</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>The choreography</h2>
+  <p>The choreography is a table of twelve states. Each state holds a target for the seven movable joints, a tolerance, a short pause, and one transition to the next state. The state machine publishes the target on <code>/joint_trajectory</code>, watches <code>/joint_states</code>, and takes the transition once every joint is within 0.03 of its target.</p>
+  <ul class="states" aria-label="State order">
+    <li>stand</li><li class="sep">&rarr;</li><li>reach</li><li class="sep">&rarr;</li><li class="hot">grasp</li><li class="sep">&rarr;</li><li>lift</li><li class="sep">&rarr;</li><li>swing</li><li class="sep">&rarr;</li><li>place</li><li class="sep">&rarr;</li><li class="hot">release</li><li class="sep">&rarr;</li><li>retreat</li><li class="sep">&rarr;</li><li>wave_up</li><li class="sep">&rarr;</li><li>wave_left</li><li class="sep">&rarr;</li><li>wave_right</li><li class="sep">&rarr;</li><li>wave_left2</li><li class="sep">&circlearrowleft;</li>
+  </ul>
+  <p>The fingers close at <code>grasp</code> and open at <code>release</code>. During <code>lift</code> and <code>swing</code> the continuous wrist joint turns past 3 radians, which a limited joint could not do. The last four states are the wave. The joint servo moves each joint toward its target with a first-order response, so the motion eases in and out instead of snapping.</p>
+</section>
+
+<section>
+  <h2>How it is drawn</h2>
+  <p>The viewer is a small web page with no graphics library. A browser cannot open a raw TCP socket, so the hub also serves a local web page and a JSON endpoint that returns the latest <code>/xform_world</code> message. The page asks for it about thirty times a second.</p>
+  <p>Each message holds one 4x4 matrix per link, stored column by column. For every link the page multiplies that matrix by the link's visual origin and builds the faces of its box, cylinder or sphere in world space. It projects them with a simple perspective camera, sorts the faces from far to near, and fills them with a shade that depends on the face direction. Yellow lines join each joint's parent and child frames, and the small red, green and blue lines are each link's own axes. The scene is z-up, the same as the URDF, and no correction is applied to the robot's frames.</p>
+</section>
+
+<section>
+  <h2>How the kinematics works</h2>
+  <p>All rotation uses unit quaternions. A joint's origin angles are fixed-axis roll, pitch and yaw, and its motion happens after the origin, in the joint's own frame.</p>
+  <div class="eq">R_origin   = Rz(yaw) &middot; Ry(pitch) &middot; Rx(roll)
+T_joint(q) = T_origin &middot; T_motion(q)
+T_motion   = rotate q about the unit axis      (revolute, continuous)
+           = translate q &middot; axis, axis as written  (prismatic)
+           = identity                          (fixed)
+T_root_child = T_root_parent &middot; T_joint
+T_global_link = T_global_root &middot; T_root_link</div>
+  <p>The kinematics code never clamps a position to its limits, so it uses the angles and distances exactly as they arrive. A joint that is not named in a <code>/joint_states</code> message returns to zero, and every <code>/tf</code> message carries the timestamp of the joint state that produced it.</p>
+</section>
+
+<section>
+  <h2>How the pieces connect</h2>
+  <div class="flow">
+    <div><b>/param_server/set_param</b><span>A client sets <code>robot_description</code> to the URDF text. The server stores it and returns a new version number.</span></div>
+    <div><b>description_status</b><span><code>robot_state_publisher</code> parses and checks the URDF. A bad description is rejected and the previous robot stays in effect. The status is written only after the new robot is fully loaded.</span></div>
+    <div><b>/joint_states</b><span>In the demo, the joint servo publishes the current angles. Any other client can publish them too.</span></div>
+    <div><b>/tf</b><span>One transform per joint, fixed joints included, published at 20 Hz.</span></div>
+    <div><b>/global_pose</b><span>An optional pose for the root link. Until one arrives, the root sits at the origin.</span></div>
+    <div><b>/xform_world</b><span><code>robot_world_state_publisher</code> composes only the latest <code>/tf</code> message with the global pose and publishes every link's 4x4 matrix at 20 Hz.</span></div>
+  </div>
+  <p style="margin-top:12px">Everything runs in one Rust program with no external crates. The URDF reader, the XML parser and the JSON parser are my own. Each client gets its own output queue, so a slow client never holds up the others.</p>
+</section>
+
+<section>
+  <h2>Checking it</h2>
+  <p>I wrote sixteen tests in the course's test format. They cover the parameter server, rejection of invalid descriptions, defaults, XML styles, joint-state motion with non-unit axes, the global pose, publishing rate, late subscribers, reloading, and a description close to 1 MiB. I also compared the arm math against a separate matrix implementation on 40 random robots, and every link matched to within 1e-6. The Fetch robot's URDF from the course kit also loads and publishes all of its links.</p>
+</section>
+
+<footer>
+  <p>The arm and its choreography are original to this project, and no third-party robot model appears in the video. I built the software with help from Claude, an AI assistant from Anthropic, and I reviewed and tested the result.</p>
+</footer>
+</div>
+
+</body>
+</html>
